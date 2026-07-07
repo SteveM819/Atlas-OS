@@ -14,10 +14,7 @@
 
 <style>
 /* =====================================================================
-   ATLAS OS — v0.2 "The Session"
-   Same instrument-panel language, refined: deeper layering, electric
-   steel→violet gradient reserved for primary actions and progress,
-   springier micro-interactions. Colour still encodes data direction.
+   ATLAS OS — v0.2.2 "Session Flexibility & Data Safety"
    ===================================================================== */
 :root{
   --bg:      #0C0F14;
@@ -26,10 +23,11 @@
   --line:    #29323F;
   --text:    #EAF0F6;
   --muted:   #8A97A6;
-  --act:     #7FB2E5;                                   /* steel        */
-  --grad:    linear-gradient(135deg,#6EA8E8 0%,#8F7BFF 100%); /* primary */
+  --act:     #7FB2E5;
+  --grad:    linear-gradient(135deg,#6EA8E8 0%,#8F7BFF 100%);
   --up:      #6FD99B;
   --down:    #E08A6E;
+  --warn:    #E0B95A;
   --flat:    #8A97A6;
   --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -41,7 +39,6 @@ html,body{margin:0; padding:0; background:var(--bg); color:var(--text);
 body{padding-bottom:calc(84px + env(safe-area-inset-bottom));
   background-image:radial-gradient(120% 50% at 50% -10%, #16202e 0%, var(--bg) 60%);}
 
-/* ---------- header ---------- */
 header{padding:calc(16px + env(safe-area-inset-top)) 18px 12px;
   display:flex; align-items:baseline; justify-content:space-between;}
 .wordmark{font-weight:800; letter-spacing:.16em; font-size:15px;}
@@ -49,7 +46,6 @@ header{padding:calc(16px + env(safe-area-inset-top)) 18px 12px;
   background-clip:text; color:transparent;}
 .headdate{font-family:var(--mono); font-size:12px; color:var(--muted);}
 
-/* ---------- layout ---------- */
 main{padding:0 14px;}
 .card{background:var(--surface); border:1px solid var(--line);
   border-radius:var(--r); padding:16px; margin-bottom:12px;
@@ -61,7 +57,6 @@ main{padding:0 14px;}
 .row{display:flex; align-items:center; gap:10px;}
 .spread{display:flex; align-items:center; justify-content:space-between;}
 
-/* ---------- buttons ---------- */
 button{font-family:var(--sans); border:none; cursor:pointer;
   transition:transform .12s ease, filter .12s ease;}
 button:active{transform:scale(.96);}
@@ -76,15 +71,14 @@ button:active{transform:scale(.96);}
   color:var(--act); font-size:12px; font-weight:700; padding:7px 11px;
   border-radius:999px;}
 
-/* ---------- delta ticker (the signature element) ---------- */
 .delta{font-family:var(--mono); font-size:12.5px; font-weight:600;
   padding:4px 9px; border-radius:999px; white-space:nowrap;
   background:var(--surface2); border:1px solid var(--line);}
 .delta.up  {color:var(--up);   background:rgba(111,217,155,.10); border-color:rgba(111,217,155,.35);}
 .delta.down{color:var(--down); background:rgba(224,138,110,.10); border-color:rgba(224,138,110,.35);}
+.delta.warn{color:var(--warn); background:rgba(224,185,90,.10);  border-color:rgba(224,185,90,.35);}
 .delta.flat{color:var(--flat);}
 
-/* ---------- metrics quick entry ---------- */
 .metrics{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;}
 .metric{background:var(--surface2); border:1px solid var(--line);
   border-radius:12px; padding:9px 11px;}
@@ -95,19 +89,19 @@ button:active{transform:scale(.96);}
   outline:none;}
 .metric input::placeholder{color:#3a4655;}
 
-/* ---------- progress bars ---------- */
 .bar{height:9px; background:var(--surface2); border-radius:6px;
   overflow:hidden; margin-top:9px;}
 .bar > div{height:100%; background:var(--grad); border-radius:6px;
   transition:width .35s cubic-bezier(.2,.8,.2,1);}
 
-/* ---------- session logging ---------- */
-.sessionhead{position:sticky; top:0; z-index:5; margin:0 -14px 12px;
+/* ---------- session ---------- */
+.sessionhead{position:sticky; top:0; z-index:5; margin:0 -14px 10px;
   padding:10px 16px; background:rgba(12,15,20,.88); backdrop-filter:blur(14px);
   border-bottom:1px solid var(--line); display:flex; align-items:center;
   justify-content:space-between;}
 .sessionhead .t{font-size:18px; font-weight:800;}
 .sessionhead .m{font-family:var(--mono); font-size:12px; color:var(--muted);}
+.hint{font-size:11.5px; color:var(--muted); margin:0 4px 12px; line-height:1.5;}
 .ssflag{display:inline-block; font-size:10px; font-weight:800;
   letter-spacing:.12em; color:#0A1220; background:var(--grad);
   padding:3px 8px; border-radius:999px; margin-bottom:8px;}
@@ -116,21 +110,25 @@ button:active{transform:scale(.96);}
 .exname{font-size:16px; font-weight:700;}
 .lastline{font-family:var(--mono); font-size:12px; color:var(--muted);
   margin-top:2px;}
+.noteline{font-size:12px; color:var(--warn); margin-top:3px;}
 .setrow{display:flex; align-items:center; gap:6px; margin-top:10px;
   opacity:.5; transition:opacity .15s;}
 .setrow.done{opacity:1;}
-.setnum{font-family:var(--mono); font-size:12px; color:var(--muted); width:16px;}
+.setnum{font-family:var(--mono); font-size:12px; color:var(--muted);
+  width:20px; text-align:center; padding:8px 0;}
+.setnum.warm{color:var(--warn); font-weight:800;}
 .step{width:34px; height:42px; border-radius:11px; background:var(--surface2);
   border:1px solid var(--line); color:var(--act); font-size:19px;
   font-weight:700; flex:none;}
 .val{font-family:var(--mono); font-size:17px; font-weight:700;
-  min-width:58px; text-align:center; background:transparent; border:none;
+  min-width:54px; text-align:center; background:transparent; border:none;
   color:var(--text); padding:0;}
-.val.reps{min-width:34px;}
+.val.reps{min-width:32px;}
 .unit{font-size:11px; color:var(--muted); margin-left:-4px;}
-.check{width:44px; height:42px; border-radius:11px; flex:none;
+.check{width:46px; height:42px; border-radius:11px; flex:none;
   background:var(--surface2); border:1px solid var(--line);
-  color:var(--muted); font-size:18px;}
+  color:var(--muted); font-size:16px; font-weight:700;}
+.check .tclk{font-size:9px; opacity:.75; vertical-align:top;}
 .setrow.done .check{background:var(--up); border-color:var(--up);
   color:#0A1220; box-shadow:0 4px 14px rgba(111,217,155,.35);}
 .addset{margin-top:10px; background:transparent; color:var(--act);
@@ -145,18 +143,47 @@ button:active{transform:scale(.96);}
   box-shadow:0 14px 34px rgba(0,0,0,.5);}
 #rest.on{display:flex;}
 #rest .time{font-family:var(--mono); font-size:20px; font-weight:800;}
+#rest.warn .time{color:var(--warn); animation:pulse 1s infinite;}
+#rest.zero{border-color:var(--up);}
 #rest.zero .time{color:var(--up);}
+@keyframes pulse{50%{opacity:.35;}}
 #rest .rb{background:var(--surface); border:1px solid var(--line);
   color:var(--act); font-family:var(--mono); font-size:13px; font-weight:700;
   padding:9px 12px; border-radius:999px;}
+#rest .rb.again{background:var(--up); color:#0A1220; border-color:var(--up);}
 
-/* ---------- history ---------- */
+/* ---------- modal sheet ---------- */
+#modal{position:fixed; inset:0; z-index:50; display:none;
+  background:rgba(5,8,12,.6); backdrop-filter:blur(4px);}
+#modal.on{display:block;}
+.sheet{position:absolute; left:0; right:0; bottom:0; max-height:78vh;
+  overflow-y:auto; background:var(--surface); border-radius:22px 22px 0 0;
+  border:1px solid var(--line); border-bottom:none;
+  padding:18px 16px calc(20px + env(safe-area-inset-bottom));}
+.sheet h3{margin:0 0 12px; font-size:17px; font-weight:800;}
+.pickitem{display:flex; justify-content:space-between; align-items:center;
+  padding:13px 4px; border-bottom:1px solid var(--line); font-size:15px;}
+.pickitem:last-child{border-bottom:none;}
+.pickcat{font-size:11px; color:var(--muted); text-transform:uppercase;
+  letter-spacing:.08em; margin:14px 4px 2px;}
+.searchbox,.textbox,select.textbox{width:100%; background:var(--surface2);
+  border:1px solid var(--line); border-radius:12px; color:var(--text);
+  font-size:16px; padding:12px; outline:none; font-family:var(--sans);}
+.reasons{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:6px;}
+.reasons .btn.secondary{padding:16px;}
+
+/* ---------- history / summary ---------- */
 .hitem{border-bottom:1px solid var(--line); padding:13px 2px;}
 .hitem:last-child{border-bottom:none;}
 .hdet{margin-top:8px; font-family:var(--mono); font-size:13px;
   color:var(--muted); line-height:1.7;}
+.sumgrid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;}
+.sumbox{background:var(--surface2); border:1px solid var(--line);
+  border-radius:12px; padding:12px;}
+.sumbox .v{font-family:var(--mono); font-size:22px; font-weight:800;}
+.sumbox .k{font-size:11px; color:var(--muted); text-transform:uppercase;
+  letter-spacing:.07em; margin-top:2px;}
 
-/* ---------- bottom nav ---------- */
 nav{position:fixed; bottom:0; left:0; right:0; display:flex; gap:4px;
   background:rgba(12,15,20,.9); backdrop-filter:blur(16px);
   border-top:1px solid var(--line);
@@ -172,7 +199,15 @@ nav .ic{display:block; font-size:19px; margin-bottom:2px;}
 h1.screen{font-size:23px; font-weight:800; margin:6px 4px 14px;
   letter-spacing:-.02em;}
 .note{font-size:12px; color:var(--muted); line-height:1.6; margin-top:10px;}
-@media (prefers-reduced-motion: reduce){ *{transition:none !important;} }
+.togglerow{display:flex; justify-content:space-between; align-items:center;
+  margin-top:10px;}
+.switch{width:52px; height:30px; border-radius:999px; background:var(--surface2);
+  border:1px solid var(--line); position:relative;}
+.switch.on{background:var(--grad); border-color:transparent;}
+.switch::after{content:""; position:absolute; top:3px; left:3px; width:22px;
+  height:22px; border-radius:50%; background:#fff; transition:left .15s;}
+.switch.on::after{left:25px;}
+@media (prefers-reduced-motion: reduce){ *{transition:none !important; animation:none !important;} }
 </style>
 </head>
 <body>
@@ -186,11 +221,11 @@ h1.screen{font-size:23px; font-weight:800; margin:6px 4px 14px;
 
 <div id="rest">
   <span class="time" id="resttime">1:30</span>
-  <span class="row" style="gap:6px">
-    <button class="rb" onclick="restAdj(-30)">−30s</button>
-    <button class="rb" onclick="restAdj(30)">+30s</button>
-    <button class="rb" onclick="restStop()">✕</button>
-  </span>
+  <span class="row" style="gap:6px" id="restbtns"></span>
+</div>
+
+<div id="modal" onclick="if(event.target===this) closeModal()">
+  <div class="sheet" id="sheetc"></div>
 </div>
 
 <nav>
@@ -201,15 +236,19 @@ h1.screen{font-size:23px; font-weight:800; margin:6px 4px 14px;
 
 <script>
 /* =====================================================================
-   ATLAS OS v0.2 — "The Session"
-   New since v0.1: adjusting a set auto-ticks it, ✓-all per exercise,
-   live session timer, rest timer (30s steps), supersets, migration.
-   Read top-to-bottom: STATE → MIGRATION → HELPERS → FACTS → TIMERS →
-   SCREENS → ACTIONS.
+   ATLAS OS v0.2.2 — "Session Flexibility & Data Safety"
+   New: create/swap/skip exercises with reasons · proper picker ·
+   clock-anchored rest timer (+repeat, 20s warning) · keep-screen-awake ·
+   warm-up flags · exercise notes · finish summary with tonnage ·
+   backup guardrails (persist, Sunday prompt, overdue nudge) · CSV export
+   Sections: STATE → MIGRATION → HELPERS → FACTS → TIMERS → MODALS →
+   SCREENS → ACTIONS → BACKUP → BOOT
    ===================================================================== */
 
 const STORE_KEY = "atlasos_v1";
-const VERSION   = "0.2.0";
+const VERSION   = "0.2.2";
+const CATS = ["chest","back","shoulders","arms","legs","abs","cardio","other"];
+const SKIP_REASONS = ["busy","pain","time","fatigue","other"];
 
 /* ---------- 1. STATE ---------- */
 
@@ -225,15 +264,15 @@ function load(){
 function save(){ localStorage.setItem(STORE_KEY, JSON.stringify(S)); }
 
 function seed(){
-  const ex = (id,name,group,compound)=>({id,name,muscleGroup:group,isCompound:!!compound});
+  const ex = (id,name,group,compound)=>({id,name,muscleGroup:group,isCompound:!!compound,note:null});
   const exercises = [
     ex("chest-press","Chest Press Machine","chest",1),
     ex("lat-pulldown","Neutral-Grip Lat Pulldown","back",1),
     ex("db-lateral","DB Lateral Raise","shoulders"),
     ex("pec-deck","Pec Deck","chest"),
     ex("cable-row","Seated Cable Row","back",1),
-    ex("tri-ext","Tricep Extension","triceps"),
-    ex("db-curl","DB Bicep Curl","biceps"),
+    ex("tri-ext","Tricep Extension","arms"),
+    ex("db-curl","DB Bicep Curl","arms"),
     ex("squat","Barbell Squat","legs",1),
     ex("hack-squat","Hack Squat","legs",1),
     ex("leg-press","Leg Press","legs",1),
@@ -246,9 +285,9 @@ function seed(){
     ex("db-shoulder","DB Shoulder Press","shoulders",1),
     ex("dips","Dips","chest",1),
     ex("pull-ups","Pull-Ups","back",1),
-    ex("incline-curl","Incline DB Curl","biceps"),
-    ex("cgbp","Close-Grip Bench Press","triceps",1),
-    ex("oh-tri","Overhead Tricep Extension","triceps"),
+    ex("incline-curl","Incline DB Curl","arms"),
+    ex("cgbp","Close-Grip Bench Press","arms",1),
+    ex("oh-tri","Overhead Tricep Extension","arms"),
     ex("cable-cross","Cable Cross-Body Pull","back"),
     ex("cable-lateral","Cable Lateral Raise","shoulders"),
   ];
@@ -257,7 +296,7 @@ function seed(){
     {id:"upper", name:"Upper", slots:[
       slot("chest-press",3), slot("lat-pulldown",3), slot("db-lateral",4),
       slot("pec-deck",3), slot("cable-row",3),
-      slot("tri-ext",3,"a"), slot("db-curl",3,"a")]},          /* superset */
+      slot("tri-ext",3,"a"), slot("db-curl",3,"a")]},
     {id:"legs", name:"Legs", slots:[
       slot("hack-squat",3), slot("leg-press",3), slot("leg-ext",3),
       slot("ham-curl",3), slot("lunges",3), slot("cable-crunch",3), slot("ab-machine",3)]},
@@ -270,22 +309,30 @@ function seed(){
       slot("cable-crunch",3), slot("ab-machine",3)]},
   ];
   return {
-    settings:{units:"kg", weeklyRunTargetKm:15, restDefaultSec:90, appVersion:VERSION},
+    settings:{units:"kg", weeklyRunTargetKm:15, restDefaultSec:90,
+      keepAwake:true, lastExportAt:null, appVersion:VERSION},
     exercises, templates, sessions:[], dailyMetrics:[], draft:null
   };
 }
 
-/* ---------- 2. MIGRATION: upgrade v0.1 data in place, never lose it ---------- */
+/* ---------- 2. MIGRATION: upgrade older data in place, never lose it ---------- */
 function migrate(s){
   if(!s.settings) return s;
   if(!s.settings.restDefaultSec) s.settings.restDefaultSec = 90;
-  /* tag your known Upper superset if this data predates supersets */
+  if(s.settings.keepAwake===undefined) s.settings.keepAwake = true;
+  if(s.settings.lastExportAt===undefined) s.settings.lastExportAt = null;
   const upper = s.templates && s.templates.find(t=>t.id==="upper");
   if(upper) upper.slots.forEach(sl=>{
     if(sl.ss===undefined) sl.ss = null;
     if(sl.exerciseId==="tri-ext" || sl.exerciseId==="db-curl") sl.ss = "a";
   });
   (s.templates||[]).forEach(t=>t.slots.forEach(sl=>{ if(sl.ss===undefined) sl.ss=null; }));
+  (s.exercises||[]).forEach(e=>{
+    if(e.note===undefined) e.note = null;
+    if(e.muscleGroup==="triceps"||e.muscleGroup==="biceps") e.muscleGroup="arms";
+  });
+  (s.sessions||[]).forEach(x=>{ if(x.skips===undefined) x.skips = []; });
+  if(s.draft && s.draft.skips===undefined) s.draft.skips = [];
   s.settings.appVersion = VERSION;
   return s;
 }
@@ -299,6 +346,7 @@ const todayISO = () => { const d=new Date();
 const fmtW = w => w===0 ? "BW" : (Math.round(w*10)/10)+"";
 const esc  = s => String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const mmss = t => Math.floor(t/60)+":"+String(t%60).padStart(2,"0");
+const daysBetween = (a,b) => Math.round((new Date(b+"T12:00:00") - new Date(a+"T12:00:00"))/86400000);
 
 const WEEK = {1:"upper", 2:"legs", 3:"RUN", 4:"push", 5:"pull", 6:"LONGRUN", 0:"REST"};
 
@@ -321,6 +369,16 @@ function weekRunKm(dateStr){
     .filter(m => m.date >= from && m.date <= to && m.runKm)
     .reduce((n,m) => n + Number(m.runKm), 0);
   return Math.round(total*10)/10;
+}
+
+/* Backup freshness: null = never exported. */
+function backupAgeDays(){
+  if(!S.settings.lastExportAt) return null;
+  return daysBetween(S.settings.lastExportAt, todayISO());
+}
+function backupOverdue(){
+  const a = backupAgeDays();
+  return a===null || a>7;
 }
 
 /* ---------- 4. FACTS ---------- */
@@ -357,10 +415,15 @@ function deltaFor(exId, sets, excludeSessionId){
   return {cls:"flat", label:"― same"};
 }
 
+/* Tonnage = sum of weight × reps across working (non-warm-up) sets. */
+function tonnage(entries){
+  return Math.round(entries.reduce((t,en)=>
+    t + en.sets.filter(s=>!s.isWarmup).reduce((x,s)=>x + s.weightKg*s.reps, 0), 0));
+}
+
 /* ---------- 5. TIMERS ---------- */
 
-/* Session clock: starts when a session starts, shown in the sticky header,
-   saved as durationMin when you finish. */
+/* Session clock — anchored to startedAt, always correct after phone lock. */
 let clockIv = null;
 function tickClock(){
   const el = $("#elapsed");
@@ -372,45 +435,126 @@ function manageClock(){
   if(view==="session" && S.draft) clockIv = setInterval(tickClock, 1000);
 }
 
-/* Rest timer: auto-starts when you tick a set, adjustable in 30s steps. */
-let rest = {left:0, iv:null};
+/* Rest timer — anchored to a real end time ("ends at 14:32:10"), so it is
+   correct the instant you unlock the phone, even though iOS froze us. */
+let rest = {endsAt:0, iv:null, active:false};
+function restLeft(){ return Math.max(0, Math.ceil((rest.endsAt - Date.now())/1000)); }
 function restStart(sec){
-  restStop();
-  rest.left = sec;
-  $("#rest").classList.add("on");
-  $("#rest").classList.remove("zero");
-  restRender();
-  rest.iv = setInterval(()=>{
-    rest.left--;
-    if(rest.left<=0){ rest.left=0; clearInterval(rest.iv); rest.iv=null;
-      $("#rest").classList.add("zero"); beep(); }
-    restRender();
-  },1000);
+  clearInterval(rest.iv);
+  rest.endsAt = Date.now() + sec*1000;
+  rest.active = true;
+  rest.iv = setInterval(restTick, 500);
+  restTick();
+}
+function restTick(){
+  if(!rest.active) return;
+  const left = restLeft();
+  const el = $("#rest");
+  el.classList.add("on");
+  el.classList.toggle("warn", left>0 && left<=20);
+  el.classList.toggle("zero", left===0);
+  $("#resttime").textContent = mmss(left);
+  $("#restbtns").innerHTML = left===0
+    ? `<button class="rb again" onclick="restStart(S.settings.restDefaultSec)">↻ ${mmss(S.settings.restDefaultSec)}</button>
+       <button class="rb" onclick="restStop()">✕</button>`
+    : `<button class="rb" onclick="restAdj(-30)">−30s</button>
+       <button class="rb" onclick="restAdj(30)">+30s</button>
+       <button class="rb" onclick="restStop()">✕</button>`;
+  if(left===0 && rest.iv){ clearInterval(rest.iv); rest.iv=null; beep(); }
 }
 function restAdj(d){
-  rest.left = Math.max(0, rest.left+d);
-  if(rest.left>0) $("#rest").classList.remove("zero");
-  if(rest.left>0 && !rest.iv) restStart(rest.left);
-  restRender();
+  rest.endsAt = Math.max(Date.now(), rest.endsAt + d*1000);
+  if(!rest.iv && restLeft()>0) rest.iv = setInterval(restTick, 500);
+  restTick();
 }
 function restStop(){
-  clearInterval(rest.iv); rest.iv=null; rest.left=0;
-  $("#rest").classList.remove("on","zero");
+  clearInterval(rest.iv); rest.iv=null; rest.active=false;
+  $("#rest").classList.remove("on","warn","zero");
 }
-function restRender(){ $("#resttime").textContent = mmss(rest.left); }
 function beep(){
   try{
     const ctx = new (window.AudioContext||window.webkitAudioContext)();
-    const o = ctx.createOscillator(), g = ctx.createGain();
-    o.connect(g); g.connect(ctx.destination);
-    o.frequency.value = 880; g.gain.value = 0.12;
-    o.start(); o.stop(ctx.currentTime + 0.35);
+    const tone = (at)=>{ const o=ctx.createOscillator(), g=ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value=880; g.gain.value=0.14;
+      o.start(ctx.currentTime+at); o.stop(ctx.currentTime+at+0.45); };
+    tone(0); tone(0.7);
   }catch(e){}
 }
 
-/* ---------- 6. SCREENS ---------- */
+/* Keep the screen awake during a session (Settings toggle). */
+let wl = null;
+async function manageWake(){
+  try{
+    if(view==="session" && S.settings.keepAwake && "wakeLock" in navigator){
+      wl = await navigator.wakeLock.request("screen");
+    } else if(wl){ await wl.release(); wl = null; }
+  }catch(e){}
+}
+document.addEventListener("visibilitychange", ()=>{
+  if(document.visibilityState==="visible"){ restTick(); tickClock(); manageWake(); }
+});
+
+/* ---------- 6. MODALS (bottom sheet) ---------- */
+
+function openModal(html){ $("#sheetc").innerHTML = html; $("#modal").classList.add("on"); }
+function closeModal(){ $("#modal").classList.remove("on"); }
+
+/* Exercise picker: grouped by category, searchable, with create-new. */
+let pickCb = null;
+function pickExercise(cb, title){
+  pickCb = cb;
+  openModal(`<h3>${esc(title||"Choose exercise")}</h3>
+    <input class="searchbox" placeholder="Search…" oninput="renderPickList(this.value)">
+    <div id="picklist"></div>`);
+  renderPickList("");
+}
+function renderPickList(q){
+  q = q.toLowerCase();
+  let h = `<div class="pickitem" style="color:var(--act); font-weight:700"
+    onclick="createExerciseForm()">＋ Create new exercise</div>`;
+  for(const cat of CATS){
+    const items = S.exercises.filter(e=>e.muscleGroup===cat &&
+      e.name.toLowerCase().includes(q));
+    if(!items.length) continue;
+    h += `<div class="pickcat">${cat}</div>`;
+    for(const e of items)
+      h += `<div class="pickitem" onclick="pickDone('${e.id}')">${esc(e.name)}</div>`;
+  }
+  $("#picklist").innerHTML = h;
+}
+function pickDone(id){ closeModal(); if(pickCb) pickCb(id); }
+function createExerciseForm(){
+  openModal(`<h3>New exercise</h3>
+    <input class="textbox" id="newexname" placeholder="Name (e.g. DB Romanian Deadlift)">
+    <div style="height:10px"></div>
+    <select class="textbox" id="newexcat">
+      ${CATS.map(c=>`<option value="${c}">${c}</option>`).join("")}
+    </select>
+    <div style="height:14px"></div>
+    <button class="btn" onclick="createExerciseSave()">Add to library</button>`);
+}
+function createExerciseSave(){
+  const name = $("#newexname").value.trim();
+  if(!name){ alert("Give it a name first."); return; }
+  const id = "x" + Date.now();
+  S.exercises.push({id, name, muscleGroup:$("#newexcat").value, isCompound:false, note:null});
+  save(); closeModal();
+  if(pickCb) pickCb(id);
+}
+
+/* Skip/swap reason: one tap, recorded forever. */
+function pickReason(cb, title){
+  openModal(`<h3>${esc(title)}</h3>
+    <div class="reasons">${SKIP_REASONS.map(r=>
+      `<button class="btn secondary" onclick="closeModal(); (${cb})('${r}')">${r}</button>`).join("")}
+    </div>`);
+}
+
+/* ---------- 7. SCREENS ---------- */
 
 let view = "today";
+let lastSummary = null;
 function go(v){ view=v; render(); window.scrollTo(0,0); }
 
 function render(){
@@ -418,13 +562,14 @@ function render(){
     {weekday:"short", day:"numeric", month:"short"});
   ["today","history","settings"].forEach(v=>
     $("#nav-"+v).classList.toggle("active", view===v ||
-      (v==="today" && view==="session")));
+      (v==="today" && (view==="session"||view==="summary"))));
   const m = $("#main");
   if(view==="today")    m.innerHTML = TodayScreen();
   if(view==="session")  m.innerHTML = SessionScreen();
+  if(view==="summary")  m.innerHTML = SummaryScreen();
   if(view==="history")  m.innerHTML = HistoryScreen();
   if(view==="settings") m.innerHTML = SettingsScreen();
-  manageClock(); tickClock();
+  manageClock(); tickClock(); manageWake();
   save();
 }
 
@@ -455,6 +600,19 @@ function TodayScreen(){
       <div style="margin-top:12px"><button class="btn" onclick="startSession('${t.id}')">Start ${esc(t.name)}</button></div></div>`;
   }
 
+  /* Backup guardrail: Sunday ritual + overdue warning */
+  const age = backupAgeDays();
+  const isSunday = new Date().getDay()===0;
+  const sundayDue = isSunday && S.settings.lastExportAt !== todayISO();
+  if(backupOverdue() || sundayDue){
+    h += `<div class="card" style="border-color:rgba(224,185,90,.5)">
+      <div class="spread"><h2 style="color:var(--warn)">Backup ${sundayDue?"— Sunday ritual":"overdue"}</h2>
+        <span class="delta warn">${age===null?"never exported":age+"d ago"}</span></div>
+      <div class="note">Your data lives only on this phone. Export now, then save the file
+        to iCloud Drive or Google Drive via the Files app.</div>
+      <div style="margin-top:10px"><button class="btn" onclick="exportData()">Export backup (.json)</button></div></div>`;
+  }
+
   h += `<div class="card"><h2>Or start another session</h2>
     <div class="row" style="flex-wrap:wrap; margin-top:8px">`;
   for(const t of S.templates)
@@ -465,13 +623,13 @@ function TodayScreen(){
   h += `<div class="card"><h2>Today's numbers</h2>
     <div class="metrics" style="margin-top:8px">
       <div class="metric"><label>Weight kg</label>
-        <input type="number" inputmode="decimal" step="0.1" placeholder="—"
+        <input type="number" inputmode="decimal" step="0.1" placeholder="—" onfocus="this.select()"
           value="${met.bodyweightKg ?? ""}" onchange="setMetric('bodyweightKg', this.value)"></div>
       <div class="metric"><label>Sleep h</label>
-        <input type="number" inputmode="decimal" step="0.5" placeholder="—"
+        <input type="number" inputmode="decimal" step="0.5" placeholder="—" onfocus="this.select()"
           value="${met.sleepHours ?? ""}" onchange="setMetric('sleepHours', this.value)"></div>
       <div class="metric"><label>Run km</label>
-        <input type="number" inputmode="decimal" step="0.1" placeholder="—"
+        <input type="number" inputmode="decimal" step="0.1" placeholder="—" onfocus="this.select()"
           value="${met.runKm ?? ""}" onchange="setMetric('runKm', this.value)"></div>
     </div></div>`;
 
@@ -498,7 +656,6 @@ function TodayScreen(){
 
 /* ----- SESSION ----- */
 
-/* Group consecutive entries that share a superset tag into one card. */
 function groupedEntries(){
   const groups = [];
   S.draft.entries.forEach((en, ei)=>{
@@ -519,34 +676,40 @@ function SessionScreen(){
     <div><div class="t">${esc(d.name)}</div>
       <div class="m"><span id="elapsed">0:00</span> · ${done}/${total} sets</div></div>
     <button class="btn" style="width:auto; padding:10px 18px; font-size:14px"
-      onclick="finishSession()">Finish</button></div>`;
+      onclick="finishSession()">Finish</button></div>
+    <div class="hint">✓ starts the ⏱ rest timer · tap a set's number to mark it a warm-up
+      (W sets don't count toward your deltas)</div>`;
 
   for(const g of groupedEntries()){
     h += `<div class="card">`;
     if(g.items.length>1) h += `<span class="ssflag">SUPERSET</span>`;
-    g.items.forEach(({en, ei}, k)=>{
+    g.items.forEach(({en, ei})=>{
       const ex = exById(en.exerciseId);
       const last = lastEntryFor(en.exerciseId, null);
       const lastTxt = last
-        ? "Last: " + last.entry.sets.map(s=>fmtW(s.weightKg)+"×"+s.reps).join("  ")
+        ? "Last: " + last.entry.sets.map(s=>(s.isWarmup?"w":"")+fmtW(s.weightKg)+"×"+s.reps).join("  ")
         : "First time logging this";
       h += `<div class="exblock"><div class="spread">
         <div><div class="exname">${esc(ex?.name ?? "?")}</div>
-        <div class="lastline">${esc(lastTxt)}</div></div>
-        <button class="chipbtn" onclick="checkAll(${ei})">✓ all</button></div>`;
+        <div class="lastline">${esc(lastTxt)}</div>
+        ${ex && ex.note ? `<div class="noteline">✎ ${esc(ex.note)}</div>` : ""}</div>
+        <span class="row" style="gap:6px; flex:none">
+          <button class="chipbtn" onclick="checkAll(${ei})">✓ all ⏱</button>
+          <button class="chipbtn" onclick="exMenu(${ei})">⋯</button></span></div>`;
       en.sets.forEach((s, si)=>{
         h += `<div class="setrow ${s.done?"done":""}">
-          <span class="setnum">${si+1}</span>
+          <button class="setnum ${s.isWarmup?"warm":""}" style="background:none;border:none"
+            onclick="toggleWarm(${ei},${si})">${s.isWarmup?"W":si+1}</button>
           <button class="step" onclick="bump(${ei},${si},'weightKg',-2.5)">−</button>
-          <input class="val" type="number" inputmode="decimal" step="0.5"
+          <input class="val" type="number" inputmode="decimal" step="0.5" onfocus="this.select()"
             value="${s.weightKg}" onchange="setVal(${ei},${si},'weightKg',this.value)">
           <span class="unit">kg</span>
           <button class="step" onclick="bump(${ei},${si},'weightKg',2.5)">＋</button>
           <button class="step" onclick="bump(${ei},${si},'reps',-1)">−</button>
-          <input class="val reps" type="number" inputmode="numeric"
+          <input class="val reps" type="number" inputmode="numeric" onfocus="this.select()"
             value="${s.reps}" onchange="setVal(${ei},${si},'reps',this.value)">
           <button class="step" onclick="bump(${ei},${si},'reps',1)">＋</button>
-          <button class="check" onclick="toggleDone(${ei},${si})">✓</button>
+          <button class="check" onclick="toggleDone(${ei},${si})">✓<span class="tclk">⏱</span></button>
         </div>`;
       });
       h += `<button class="addset" onclick="addSet(${ei})">+ Add set</button></div>`;
@@ -557,6 +720,55 @@ function SessionScreen(){
   h += `<button class="btn secondary" onclick="addExercise()">+ Add exercise</button>
         <div style="height:10px"></div>
         <button class="btn danger" onclick="discardSession()">Discard session</button>`;
+  return h;
+}
+
+/* Per-exercise actions: swap, skip, note. */
+function exMenu(ei){
+  const ex = exById(S.draft.entries[ei].exerciseId);
+  openModal(`<h3>${esc(ex.name)}</h3>
+    <div class="pickitem" onclick="closeModal(); swapExercise(${ei})">⇄ Swap for another exercise</div>
+    <div class="pickitem" onclick="closeModal(); skipExercise(${ei})">⤫ Skip today (with reason)</div>
+    <div class="pickitem" onclick="closeModal(); noteExercise(${ei})">✎ Note (settings, seat height…)</div>`);
+}
+
+/* ----- SUMMARY (after Finish) ----- */
+function SummaryScreen(){
+  const s = lastSummary;
+  if(!s) return `<div class="empty">Nothing to show.</div>`;
+  let h = `<h1 class="screen">Session complete</h1>
+  <div class="card"><h2>${esc(s.name)} · ${s.date}</h2>
+    <div class="sumgrid">
+      <div class="sumbox"><div class="v">${s.durationMin ?? "—"}</div><div class="k">minutes</div></div>
+      <div class="sumbox"><div class="v">${s.sets}</div><div class="k">sets logged</div></div>
+      <div class="sumbox"><div class="v">${s.tonnage.toLocaleString()}</div><div class="k">kg tonnage</div></div>
+      <div class="sumbox"><div class="v">${s.ups}</div><div class="k">exercises beaten</div></div>
+    </div></div>`;
+  if(s.deltas.length){
+    h += `<div class="card"><h2>vs last time</h2>`;
+    for(const d of s.deltas)
+      h += `<div class="spread" style="margin-top:9px">
+        <span style="font-size:14px">${esc(d.name)}</span>
+        <span class="delta ${d.cls}">${d.label}</span></div>`;
+    h += `</div>`;
+  }
+  if(s.skips.length){
+    h += `<div class="card"><h2>Skipped / swapped</h2>`;
+    for(const k of s.skips){
+      const to = k.swappedToId ? " → "+esc(exById(k.swappedToId)?.name ?? "?") : "";
+      h += `<div class="spread" style="margin-top:9px">
+        <span style="font-size:14px">${esc(exById(k.exerciseId)?.name ?? "?")}${to}</span>
+        <span class="delta warn">${esc(k.reason)}</span></div>`;
+    }
+    h += `</div>`;
+  }
+  if(backupOverdue()){
+    h += `<div class="card" style="border-color:rgba(224,185,90,.5)">
+      <h2 style="color:var(--warn)">Backup overdue</h2>
+      <div class="note">Good moment to export — takes ten seconds.</div>
+      <div style="margin-top:10px"><button class="btn" onclick="exportData(); render();">Export backup (.json)</button></div></div>`;
+  }
+  h += `<button class="btn secondary" onclick="go('today')">Done</button>`;
   return h;
 }
 
@@ -575,7 +787,11 @@ function HistoryScreen(){
       <div class="hdet" id="h-${sess.id}" style="display:none">`;
     for(const en of sess.entries){
       h += `${esc(exById(en.exerciseId)?.name ?? "?")}: `
-        + en.sets.map(s=>fmtW(s.weightKg)+"×"+s.reps).join("  ") + "<br>";
+        + en.sets.map(s=>(s.isWarmup?"w":"")+fmtW(s.weightKg)+"×"+s.reps).join("  ") + "<br>";
+    }
+    for(const k of (sess.skips||[])){
+      const to = k.swappedToId ? " → "+esc(exById(k.swappedToId)?.name ?? "?") : "";
+      h += `<span style="color:var(--warn)">skipped ${esc(exById(k.exerciseId)?.name ?? "?")}${to} (${esc(k.reason)})</span><br>`;
     }
     h += `</div></div>`;
   }
@@ -586,11 +802,12 @@ function toggleH(id){ const el=$("#h-"+id);
 
 /* ----- SETTINGS ----- */
 function SettingsScreen(){
+  const age = backupAgeDays();
   return `<h1 class="screen">Settings</h1>
   <div class="card"><h2>Weekly run target</h2>
     <div class="row" style="margin-top:8px">
       <input class="val" style="text-align:left; font-size:20px" type="number"
-        inputmode="decimal" value="${S.settings.weeklyRunTargetKm}"
+        inputmode="decimal" value="${S.settings.weeklyRunTargetKm}" onfocus="this.select()"
         onchange="S.settings.weeklyRunTargetKm=Number(this.value)||0; save();">
       <span class="unit">km</span></div></div>
 
@@ -600,13 +817,20 @@ function SettingsScreen(){
       <span class="val" style="min-width:70px">${mmss(S.settings.restDefaultSec)}</span>
       <button class="step" onclick="restDefault(30)">＋</button>
       <span class="unit">min:sec</span></div>
-    <div class="note">The rest timer starts automatically each time you tick a set,
-      and can be nudged ±30s mid-countdown.</div></div>
+    <div class="note">Starts automatically when you tick a set. Nudge ±30s mid-countdown;
+      when it hits zero, one tap restarts it. Note: iPhones don't allow web apps to vibrate
+      or send lock-screen alerts — the beep sounds only while Atlas is on screen.</div>
+    <div class="togglerow"><span style="font-size:14px">Keep screen awake during sessions</span>
+      <button class="switch ${S.settings.keepAwake?"on":""}" onclick="S.settings.keepAwake=!S.settings.keepAwake; save(); render();"></button></div></div>
 
   <div class="card"><h2>Backup</h2>
-    <div class="note">Your data lives only on this phone. Export weekly —
-      the file re-imports here or into any future version of Atlas.</div>
-    <div style="margin-top:10px"><button class="btn secondary" onclick="exportData()">Export data (.json)</button></div>
+    <div class="spread" style="margin-top:6px"><span class="note" style="margin:0">Last export</span>
+      <span class="delta ${backupOverdue()?"warn":"flat"}">${age===null?"never":age===0?"today":age+"d ago"}</span></div>
+    <div class="note">The .json file is your real backup — it restores everything via Import.
+      Save it to iCloud or Google Drive through the Files app. The .csv is for analysis in
+      Excel and doesn't count as a backup.</div>
+    <div style="margin-top:10px"><button class="btn secondary" onclick="exportData()">Export backup (.json)</button></div>
+    <div style="margin-top:8px"><button class="btn secondary" onclick="exportCSV()">Export for Excel (.csv)</button></div>
     <div style="margin-top:8px"><button class="btn secondary" onclick="$('#importfile').click()">Import data</button>
       <input id="importfile" type="file" accept=".json,application/json"
         style="display:none" onchange="importData(this.files[0])"></div></div>
@@ -622,7 +846,7 @@ function restDefault(d){
   save(); render();
 }
 
-/* ---------- 7. ACTIONS ---------- */
+/* ---------- 8. ACTIONS ---------- */
 
 function setMetric(field, val){
   const m = metricsFor(todayISO());
@@ -633,22 +857,25 @@ function setMetric(field, val){
 function startSession(templateId){
   if(S.draft && !confirm("Discard the session in progress and start a new one?")) return;
   const t = S.templates.find(t=>t.id===templateId);
-  const entries = t.slots.map(slot=>{
-    const last = lastEntryFor(slot.exerciseId, null);
-    const sets = [];
-    for(let i=0; i<slot.targetSets; i++){
-      const prev = last ? (last.entry.sets[i] || last.entry.sets[last.entry.sets.length-1]) : null;
-      sets.push({weightKg: prev? prev.weightKg : 0, reps: prev? prev.reps : 8,
-                 effort:null, isWarmup:false, done:false});
-    }
-    return {exerciseId: slot.exerciseId, ss: slot.ss||null, sets};
-  });
+  const entries = t.slots.map(slot=>({
+    exerciseId: slot.exerciseId, ss: slot.ss||null,
+    sets: prefillSets(slot.exerciseId, slot.targetSets)
+  }));
   S.draft = {id:"s"+Date.now(), date:todayISO(), templateId, name:t.name,
-    notes:null, startedAt:Date.now(), entries};
+    notes:null, startedAt:Date.now(), skips:[], entries};
   go("session");
 }
+function prefillSets(exId, n){
+  const last = lastEntryFor(exId, null);
+  const sets = [];
+  for(let i=0; i<n; i++){
+    const prev = last ? (last.entry.sets[i] || last.entry.sets[last.entry.sets.length-1]) : null;
+    sets.push({weightKg: prev? prev.weightKg : 0, reps: prev? prev.reps : 8,
+               effort:null, isWarmup:false, done:false});
+  }
+  return sets;
+}
 
-/* Adjusting a set counts as doing it — no second confirm tap needed. */
 function bump(ei, si, field, amt){
   const s = S.draft.entries[ei].sets[si];
   s[field] = Math.max(0, Math.round((Number(s[field])+amt)*10)/10);
@@ -667,7 +894,11 @@ function toggleDone(ei, si){
   if(s.done) restStart(S.settings.restDefaultSec);
   render();
 }
-/* One tap logs a whole unchanged exercise at last time's numbers. */
+function toggleWarm(ei, si){
+  const s = S.draft.entries[ei].sets[si];
+  s.isWarmup = !s.isWarmup;
+  render();
+}
 function checkAll(ei){
   S.draft.entries[ei].sets.forEach(s=>s.done=true);
   restStart(S.settings.restDefaultSec);
@@ -679,26 +910,67 @@ function addSet(ei){
   sets.push({weightKg:prev.weightKg, reps:prev.reps, effort:null, isWarmup:false, done:false});
   render();
 }
+
 function addExercise(){
-  const names = S.exercises.map((e,i)=>(i+1)+". "+e.name).join("\n");
-  const pick = prompt("Type the number of the exercise to add:\n\n"+names);
-  const idx = Number(pick)-1;
-  if(!S.exercises[idx]) return;
-  const exId = S.exercises[idx].id;
-  const asSS = S.draft.entries.length &&
-    confirm("Superset this with the previous exercise?");
-  let ss = null;
-  if(asSS){
-    const prev = S.draft.entries[S.draft.entries.length-1];
-    ss = prev.ss || ("ss"+Date.now());
-    prev.ss = ss;
-  }
-  const last = lastEntryFor(exId, null);
-  const mk = ()=>{ const p = last? last.entry.sets[0] : null;
-    return {weightKg:p?p.weightKg:0, reps:p?p.reps:8, effort:null, isWarmup:false, done:false}; };
-  S.draft.entries.push({exerciseId:exId, ss, sets:[mk(),mk(),mk()]});
+  pickExercise(exId=>{
+    const asSS = S.draft.entries.length &&
+      confirm("Superset this with the previous exercise?");
+    let ss = null;
+    if(asSS){
+      const prev = S.draft.entries[S.draft.entries.length-1];
+      ss = prev.ss || ("ss"+Date.now());
+      prev.ss = ss;
+    }
+    S.draft.entries.push({exerciseId:exId, ss, sets:prefillSets(exId,3)});
+    render();
+  }, "Add exercise");
+}
+
+/* Swap: pick the replacement, then one tap on why. The reason is the
+   analytically valuable part — busy vs pain mean different things. */
+let pendingEi = null;
+function swapExercise(ei){
+  pendingEi = ei;
+  pickExercise(newId=>{
+    const oldId = S.draft.entries[pendingEi].exerciseId;
+    if(newId===oldId) return;
+    pickReason(`(r)=>{ doSwap('${newId}', r) }`, "Why the swap?");
+  }, "Swap to which exercise?");
+}
+function doSwap(newId, reason){
+  const en = S.draft.entries[pendingEi];
+  S.draft.skips.push({exerciseId:en.exerciseId, reason, swappedToId:newId});
+  en.exerciseId = newId;
+  en.sets = prefillSets(newId, en.sets.length);   /* prefill from ITS history */
   render();
 }
+function skipExercise(ei){
+  pendingEi = ei;
+  pickReason(`(r)=>{ doSkip(r) }`, "Why skip it today?");
+}
+function doSkip(reason){
+  const en = S.draft.entries[pendingEi];
+  S.draft.skips.push({exerciseId:en.exerciseId, reason, swappedToId:null});
+  S.draft.entries.splice(pendingEi,1);
+  render();
+}
+function noteExercise(ei){
+  const ex = exById(S.draft.entries[ei].exerciseId);
+  openModal(`<h3>Note — ${esc(ex.name)}</h3>
+    <div class="note" style="margin:0 0 10px">Machine settings, seat height, grip —
+      shows under the exercise every session.</div>
+    <input class="textbox" id="exnote" value="${ex.note?esc(ex.note):""}"
+      placeholder="e.g. seat 4, narrow grip">
+    <div style="height:14px"></div>
+    <button class="btn" onclick="saveNote('${ex.id}')">Save note</button>`);
+}
+function saveNote(exId){
+  const ex = exById(exId);
+  const v = $("#exnote").value.trim();
+  ex.note = v || null;
+  save(); closeModal(); render();
+}
+
 function discardSession(){
   if(confirm("Discard this session? Nothing will be saved.")){
     S.draft=null; restStop(); go("today");
@@ -719,21 +991,62 @@ function finishSession(){
   const skipped = d.entries.reduce((n,en)=>n+en.sets.filter(s=>!s.done).length,0);
   if(skipped && !confirm(skipped+" unticked set(s) will be dropped. Finish anyway?")) return;
   const durationMin = d.startedAt ? Math.max(1, Math.round((Date.now()-d.startedAt)/60000)) : null;
+
+  /* Build the summary BEFORE saving, so deltas compare against the
+     previous session rather than this one. */
+  const deltas = entries.map(en=>({
+    name: exById(en.exerciseId)?.name ?? "?",
+    ...(deltaFor(en.exerciseId, en.sets, null) || {cls:"flat", label:"—"})
+  }));
+  lastSummary = {
+    name:d.name, date:d.date, durationMin,
+    sets: entries.reduce((n,e)=>n+e.sets.length,0),
+    tonnage: tonnage(entries),
+    ups: deltas.filter(x=>x.cls==="up").length,
+    deltas, skips:[...(d.skips||[])]
+  };
+
   S.sessions.push({id:d.id, date:d.date, templateId:d.templateId, name:d.name,
-    notes:d.notes, durationMin, entries});
+    notes:d.notes, durationMin, skips:d.skips||[], entries});
   S.draft = null;
   restStop();
-  go("today");
+  go("summary");
 }
 
-/* ---------- 8. BACKUP ---------- */
+/* ---------- 9. BACKUP ---------- */
 
-function exportData(){
-  const blob = new Blob([JSON.stringify(S, null, 2)], {type:"application/json"});
+function download(name, text, type){
+  const blob = new Blob([text], {type});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = "atlas-export-"+todayISO()+".json";
+  a.download = name;
   document.body.appendChild(a); a.click(); a.remove();
+}
+function exportData(){
+  download("atlas-export-"+todayISO()+".json", JSON.stringify(S, null, 2), "application/json");
+  S.settings.lastExportAt = todayISO();
+  save(); render();
+}
+/* CSV for Excel: one row per set, plus one row per day of metrics. */
+function csvCell(v){
+  v = v===null||v===undefined ? "" : String(v);
+  return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v;
+}
+function exportCSV(){
+  const rows = [["date","kind","session","exercise","set","warmup","weight_kg","reps","bodyweight_kg","sleep_h","run_km"]];
+  for(const sess of [...S.sessions].sort((a,b)=>a.date.localeCompare(b.date))){
+    for(const en of sess.entries){
+      const name = exById(en.exerciseId)?.name ?? en.exerciseId;
+      en.sets.forEach((s,i)=>rows.push(
+        [sess.date,"set",sess.name,name,i+1,s.isWarmup?1:0,s.weightKg,s.reps,"","",""]));
+    }
+  }
+  for(const m of [...S.dailyMetrics].sort((a,b)=>a.date.localeCompare(b.date))){
+    if(m.bodyweightKg!==null || m.sleepHours!==null || m.runKm!==null)
+      rows.push([m.date,"metric","","","","","","",m.bodyweightKg,m.sleepHours,m.runKm]);
+  }
+  const csv = rows.map(r=>r.map(csvCell).join(",")).join("\n");
+  download("atlas-sets-"+todayISO()+".csv", csv, "text/csv");
 }
 function importData(file){
   if(!file) return;
@@ -756,10 +1069,12 @@ function resetAll(){
   }
 }
 
-/* ---------- 9. BOOT ---------- */
+/* ---------- 10. BOOT ---------- */
 if("serviceWorker" in navigator && (location.protocol==="https:" || location.hostname==="localhost")){
   navigator.serviceWorker.register("sw.js").catch(()=>{});
 }
+/* Ask iOS to protect our storage from eviction (reduces, not removes, the risk). */
+try{ navigator.storage && navigator.storage.persist && navigator.storage.persist(); }catch(e){}
 render();
 </script>
 </body>
