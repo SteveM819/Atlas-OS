@@ -1,6 +1,6 @@
-/* Atlas OS service worker — makes the app load with no signal.
+/* RepCheck service worker — makes the app load with no signal.
    Strategy: cache-first for the app shell, refresh cache in background. */
-const CACHE = "atlas-v0.2.2";
+const CACHE = "repcheck-v0.3.0";
 const SHELL = ["./", "./index.html", "./icon.png"];
 
 self.addEventListener("install", e => {
