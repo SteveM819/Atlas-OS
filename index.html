@@ -282,7 +282,7 @@ h1.screen{font-size:23px; font-weight:800; margin:6px 4px 14px;
 /* IMPORTANT: the storage key keeps its historical name so every byte of
    existing data survives the rename. Renaming the key = losing the data. */
 const STORE_KEY = "atlasos_v1";
-const VERSION   = "0.3.0";
+const VERSION   = "0.3.1";
 const CATS = ["chest","back","shoulders","arms","legs","abs","cardio","other"];
 const SKIP_REASONS = ["busy","pain","time","fatigue","other"];
 const CARDIO_TYPES = ["run","row","stair","other"];
@@ -426,6 +426,15 @@ function weekCardioKm(dateStr){
   const total = S.cardio.filter(c=>c.date>=from && c.date<=to && c.km)
     .reduce((n,c)=>n+Number(c.km),0);
   return Math.round(total*10)/10;
+}
+
+/* Derived cardio facts: pace (min/km) and average speed (km/h),
+   computed only when both distance and time exist. */
+function cardioStats(c){
+  if(!c.km || !c.minutes) return "";
+  const paceSec = Math.round(c.minutes*60 / c.km);
+  const kmh = Math.round(c.km / (c.minutes/60) * 10) / 10;
+  return mmss(paceSec) + " /km · " + kmh + " km/h";
 }
 
 function backupAgeDays(){
@@ -831,11 +840,13 @@ function TodayScreen(){
         <input type="number" inputmode="numeric" placeholder="—" id="cmin" onfocus="this.select()"></div>
     </div>
     <div style="margin-top:10px"><button class="btn teal" onclick="addCardio()">Log ${esc(cardioType)}</button></div>`;
-  for(const c of todayCardio)
+  for(const c of todayCardio){
+    const st = cardioStats(c);
     h += `<div class="spread" style="margin-top:10px">
       <span class="row" style="gap:8px"><span class="badge cardio">${esc(c.type)}</span>
-      <span class="lastline">${c.km?c.km+" km":""}${c.km&&c.minutes?" · ":""}${c.minutes?c.minutes+" min":""}</span></span>
+      <span class="lastline">${c.km?c.km+" km":""}${c.km&&c.minutes?" · ":""}${c.minutes?c.minutes+" min":""}${st?" · "+st:""}</span></span>
       <button class="chipbtn" onclick="delCardio('${c.id}')">✕</button></div>`;
+  }
   h += `</div>`;
 
   /* -- bodyweight: 7-day truth + sparkline -- */
@@ -902,10 +913,12 @@ function SessionScreen(){
   let h = `<div class="sessionhead">
     <div><div class="t">${esc(d.name)}</div>
       <div class="m"><span id="elapsed">0:00</span> · ${done}/${total} sets</div></div>
-    <button class="btn" style="width:auto; padding:10px 18px; font-size:14px"
-      onclick="finishSession()">Finish</button></div>
-    <div class="hint">✓ starts the ⏱ rest timer · tap a set's number to mark it a warm-up
-      (W sets don't count toward your deltas)</div>`;
+    <span class="row" style="gap:8px">
+      <button class="chipbtn" onclick="restSettingsModal()">⏱ ${mmss(S.settings.restDefaultSec)}</button>
+      <button class="btn" style="width:auto; padding:10px 18px; font-size:14px"
+        onclick="finishSession()">Finish</button></span></div>
+    <div class="hint">✓ starts the ⏱ rest timer · tap ⏱ above to change the rest time ·
+      swipe a set left to delete it · tap a set's number to mark it a warm-up</div>`;
 
   for(const g of groupedEntries()){
     h += `<div class="card">`;
@@ -924,7 +937,7 @@ function SessionScreen(){
           <button class="chipbtn" onclick="checkAll(${ei})">✓ all ⏱</button>
           <button class="chipbtn" onclick="exMenu(${ei})">⋯</button></span></div>`;
       en.sets.forEach((s, si)=>{
-        h += `<div class="setrow ${s.done?"done":""}">
+        h += `<div class="setrow ${s.done?"done":""}" data-ei="${ei}" data-si="${si}">
           <button class="setnum ${s.isWarmup?"warm":""}" style="background:none;border:none"
             onclick="toggleWarm(${ei},${si})">${s.isWarmup?"W":si+1}</button>
           <button class="step" onclick="bump(${ei},${si},'weightKg',-2.5)">−</button>
@@ -1037,9 +1050,11 @@ function HistoryScreen(){
   for(const it of items){
     if(it.kind==="cardio"){
       const c = it.data;
+      const st = cardioStats(c);
       h += `<div class="hitem cardio"><div class="spread">
         <span class="row" style="gap:8px"><span class="badge cardio">${esc(c.type)}</span>
-          <strong style="font-size:14px">${c.km?c.km+" km":""}${c.km&&c.minutes?" · ":""}${c.minutes?c.minutes+" min":""}</strong></span>
+          <strong style="font-size:14px">${c.km?c.km+" km":""}${c.km&&c.minutes?" · ":""}${c.minutes?c.minutes+" min":""}</strong>
+          ${st?`<span class="lastline">${st}</span>`:""}</span>
         <span class="lastline">${c.date}</span></div></div>`;
     } else {
       const sess = it.data;
@@ -1133,6 +1148,27 @@ function restDefault(d){
   S.settings.restDefaultSec = Math.max(30, S.settings.restDefaultSec + d);
   save(); render();
 }
+/* In-session rest control: change the default without leaving the session.
+   If a countdown is running, it keeps its current end time; the new
+   default applies from the next set onward. */
+function restSettingsModal(){
+  openModal(`<h3>Rest between sets</h3>
+    <div class="row" style="justify-content:center; gap:16px; margin:10px 0">
+      <button class="step" style="width:56px; height:56px; font-size:26px"
+        onclick="restModalAdj(-30)">−</button>
+      <span class="val" id="restmodalval" style="font-size:30px; min-width:96px">${mmss(S.settings.restDefaultSec)}</span>
+      <button class="step" style="width:56px; height:56px; font-size:26px"
+        onclick="restModalAdj(30)">＋</button></div>
+    <div class="note" style="text-align:center">Every timer from now on starts at this.
+      A running countdown isn't interrupted.</div>
+    <div style="height:14px"></div>
+    <button class="btn" onclick="closeModal(); render();">Done</button>`);
+}
+function restModalAdj(d){
+  S.settings.restDefaultSec = Math.max(30, S.settings.restDefaultSec + d);
+  save();
+  $("#restmodalval").textContent = mmss(S.settings.restDefaultSec);
+}
 
 /* ---------- 8. ACTIONS ---------- */
 
@@ -1204,10 +1240,20 @@ function prefillSets(exId, n){
   return sets;
 }
 
+/* Cascade: setting a weight/reps copies it forward to every LATER set in
+   the same exercise that isn't ticked yet — set 1 at 12.5 kg means sets
+   2–4 follow automatically. Ticked sets are never touched. */
+function cascade(ei, si, field, val){
+  const sets = S.draft.entries[ei].sets;
+  for(let j=si+1; j<sets.length; j++){
+    if(!sets[j].done) sets[j][field] = val;
+  }
+}
 function bump(ei, si, field, amt){
   const s = S.draft.entries[ei].sets[si];
   s[field] = Math.max(0, Math.round((Number(s[field])+amt)*10)/10);
   s.done = true;
+  cascade(ei, si, field, s[field]);
   render();
 }
 function setVal(ei, si, field, v){
@@ -1215,6 +1261,7 @@ function setVal(ei, si, field, v){
   const n = Number(v);
   s[field] = isNaN(n) ? s[field] : Math.max(0, n);
   s.done = true;
+  cascade(ei, si, field, s[field]);
   render();
 }
 function toggleDone(ei, si){
@@ -1239,6 +1286,41 @@ function addSet(ei){
   sets.push({weightKg:prev.weightKg, reps:prev.reps, effort:null, isWarmup:false, done:false});
   render();
 }
+function removeSet(ei, si){
+  S.draft.entries[ei].sets.splice(si, 1);
+  render();
+}
+
+/* Swipe a set row left to delete it. Horizontal intent only — vertical
+   movement cancels, so normal scrolling is unaffected. */
+let swipe = null;
+document.addEventListener("touchstart", e=>{
+  const row = e.target.closest && e.target.closest(".setrow");
+  if(!row || view!=="session") { swipe=null; return; }
+  swipe = {row, x:e.touches[0].clientX, y:e.touches[0].clientY, dx:0, dead:false};
+}, {passive:true});
+document.addEventListener("touchmove", e=>{
+  if(!swipe || swipe.dead) return;
+  const dx = e.touches[0].clientX - swipe.x;
+  const dy = e.touches[0].clientY - swipe.y;
+  if(Math.abs(dy) > 40 && Math.abs(dy) > Math.abs(dx)){ /* it's a scroll */
+    swipe.row.style.transform = ""; swipe.dead = true; return;
+  }
+  swipe.dx = Math.min(0, dx);
+  swipe.row.style.transform = "translateX("+swipe.dx+"px)";
+  swipe.row.style.transition = "none";
+}, {passive:true});
+document.addEventListener("touchend", ()=>{
+  if(!swipe || swipe.dead){ swipe=null; return; }
+  const {row, dx} = swipe;
+  row.style.transition = "";
+  if(dx < -70 && row.dataset.ei !== undefined){
+    removeSet(Number(row.dataset.ei), Number(row.dataset.si));
+  } else {
+    row.style.transform = "";
+  }
+  swipe = null;
+});
 
 function addExercise(){
   pickExercise(exId=>{
