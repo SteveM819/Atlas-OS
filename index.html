@@ -282,7 +282,7 @@ h1.screen{font-size:23px; font-weight:800; margin:6px 4px 14px;
 /* IMPORTANT: the storage key keeps its historical name so every byte of
    existing data survives the rename. Renaming the key = losing the data. */
 const STORE_KEY = "atlasos_v1";
-const VERSION   = "0.3.1";
+const VERSION   = "0.4.0";
 const CATS = ["chest","back","shoulders","arms","legs","abs","cardio","other"];
 const SKIP_REASONS = ["busy","pain","time","fatigue","other"];
 const CARDIO_TYPES = ["run","row","stair","other"];
@@ -476,6 +476,27 @@ function lastEntryFor(exId, beforeSessionId){
   return null;
 }
 
+/* deltaFor is defined below (v0.4: verdict by e1RM). */
+
+function tonnage(entries){
+  return Math.round(entries.reduce((t,en)=>
+    t + en.sets.filter(s=>!s.isWarmup).reduce((x,s)=>x + s.weightKg*s.reps, 0), 0));
+}
+
+/* Estimated 1-rep max (Epley): converts any set to one comparable number,
+   so 60×8 and 62.5×6 can be judged fairly. For bodyweight exercises
+   (weight 0) we score by reps instead — only ever compared within the
+   same exercise, so the scales never mix in practice. */
+function e1(set){
+  if(set.weightKg === 0) return set.reps;
+  return Math.round(set.weightKg * (1 + set.reps/30) * 10) / 10;
+}
+function betterThan(a, b){ return e1(a) > e1(b); }
+
+/* Delta ticker v2: the VERDICT (up/down/flat) comes from e1RM, so a
+   heavier-but-far-fewer-reps set no longer counts as progress. The LABEL
+   stays intuitive (kg or reps) whenever it agrees with the verdict, and
+   falls back to the e1RM number when they disagree. */
 function deltaFor(exId, sets, excludeSessionId){
   const now = topSet(sets);
   const last = lastEntryFor(exId, excludeSessionId);
@@ -483,18 +504,78 @@ function deltaFor(exId, sets, excludeSessionId){
   if(!last) return {cls:"flat", label:"first log"};
   const prev = topSet(last.entry.sets);
   if(!prev) return {cls:"flat", label:"first log"};
-  const dw = Math.round((now.weightKg - prev.weightKg)*10)/10;
-  if(dw > 0)  return {cls:"up",   label:"▲ +"+dw+" kg"};
-  if(dw < 0)  return {cls:"down", label:"▼ "+dw+" kg"};
-  const dr = now.reps - prev.reps;
-  if(dr > 0)  return {cls:"up",   label:"▲ +"+dr+" rep"+(dr>1?"s":"")};
-  if(dr < 0)  return {cls:"down", label:"▼ "+dr+" rep"+(dr<-1?"s":"")};
-  return {cls:"flat", label:"― same"};
+
+  const de1 = Math.round((e1(now) - e1(prev))*10)/10;
+  const dw  = Math.round((now.weightKg - prev.weightKg)*10)/10;
+  const dr  = now.reps - prev.reps;
+  if(de1 === 0) return {cls:"flat", label:"― same"};
+  const cls = de1 > 0 ? "up" : "down";
+  const arrow = de1 > 0 ? "▲" : "▼";
+
+  if(now.weightKg===0 && prev.weightKg===0)          /* bodyweight lift */
+    return {cls, label:arrow+" "+(dr>0?"+":"")+dr+" rep"+(Math.abs(dr)>1?"s":"")};
+  if(dw !== 0 && Math.sign(dw) === Math.sign(de1))
+    return {cls, label:arrow+" "+(dw>0?"+":"")+dw+" kg"};
+  if(dw === 0 && dr !== 0)
+    return {cls, label:arrow+" "+(dr>0?"+":"")+dr+" rep"+(Math.abs(dr)>1?"s":"")};
+  /* weight and e1RM point different ways — say the honest number */
+  return {cls, label:arrow+" e1RM "+(de1>0?"+":"")+de1};
 }
 
-function tonnage(entries){
-  return Math.round(entries.reduce((t,en)=>
-    t + en.sets.filter(s=>!s.isWarmup).reduce((x,s)=>x + s.weightKg*s.reps, 0), 0));
+/* All-time records for one exercise: best single-set weight, best e1RM,
+   best session volume — with the dates they happened. */
+function recordsFor(exId){
+  let bestW=null, bestE=null, bestV=null;
+  for(const sess of S.sessions){
+    for(const en of sess.entries){
+      if(en.exerciseId!==exId) continue;
+      let vol = 0;
+      for(const s of en.sets){
+        if(s.isWarmup) continue;
+        vol += s.weightKg*s.reps;
+        if(!bestW || s.weightKg>bestW.v || (s.weightKg===bestW.v && s.reps>bestW.reps))
+          bestW = {v:s.weightKg, reps:s.reps, date:sess.date};
+        const ev = e1(s);
+        if(!bestE || ev>bestE.v) bestE = {v:ev, date:sess.date};
+      }
+      if(vol>0 && (!bestV || vol>bestV.v)) bestV = {v:Math.round(vol), date:sess.date};
+    }
+  }
+  return {bestW, bestE, bestV};
+}
+
+/* Per-exercise progression: chronological top-set e1RM per session. */
+function exSeries(exId){
+  const pts = [];
+  for(const sess of [...S.sessions].sort((a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id))){
+    const en = sess.entries.find(x=>x.exerciseId===exId);
+    if(!en) continue;
+    const ts = topSet(en.sets);
+    if(ts) pts.push({date:sess.date, v:e1(ts), top:ts});
+  }
+  return pts;
+}
+function exChart(exId){
+  const pts = exSeries(exId).slice(-20);
+  if(pts.length < 2) return `<div class="note">The chart appears after two logged sessions.</div>`;
+  const W=300, H=90, P=8;
+  const vals = pts.map(p=>p.v);
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const span = (max-min) || 1;
+  const xy = pts.map((p,i)=>[
+    P + i*(W-2*P)/(pts.length-1),
+    H-P - (p.v-min)*(H-2*P)/span ]);
+  const line = xy.map(p=>p[0].toFixed(1)+","+p[1].toFixed(1)).join(" ");
+  const lastP = xy[xy.length-1];
+  return `<svg width="100%" viewBox="0 0 ${W} ${H}" style="margin-top:8px">
+    <polyline points="${line}" fill="none" stroke="#8F7BFF" stroke-width="2"
+      stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${lastP[0].toFixed(1)}" cy="${lastP[1].toFixed(1)}" r="3.5" fill="#6FD99B"/>
+    <text x="${P}" y="12" fill="#8A97A6" font-size="10" font-family="monospace">${max}</text>
+    <text x="${P}" y="${H-2}" fill="#8A97A6" font-size="10" font-family="monospace">${min}</text>
+  </svg>
+  <div class="note" style="margin-top:2px">Top-set e1RM, last ${pts.length} sessions
+    (bodyweight lifts chart reps).</div>`;
 }
 
 /* Working sets in a date range (whole app, or per muscle group). */
@@ -516,10 +597,7 @@ function setsInRange(from, to){
 /* Is a lift stalled? Walk its top sets chronologically; count sessions
    since the last genuine improvement (weight up, or reps up at equal
    weight). 3+ sessions without improvement = stalled.                  */
-function betterThan(a, b){       /* is a an improvement over b? */
-  return a.weightKg > b.weightKg ||
-        (a.weightKg === b.weightKg && a.reps > b.reps);
-}
+/* betterThan is defined above (v0.4: judged by e1RM). */
 function stalledLifts(){
   const byEx = {};
   for(const sess of [...S.sessions].sort((a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id))){
@@ -539,7 +617,7 @@ function stalledLifts(){
     }
     if(since >= 3){
       const ex = exById(exId);
-      out.push({name: ex?.name ?? exId, sessions: since,
+      out.push({exId, name: ex?.name ?? exId, sessions: since,
         top: fmtW(best.weightKg)+"×"+best.reps});
     }
   }
@@ -723,20 +801,28 @@ function pickReason(cb, title){
 let view = "today";
 let lastSummary = null;
 let cardioType = "run";
+let detailExId = null;   /* which exercise the detail screen shows */
+let backView = "today";  /* where its Back button returns to */
+let editTid = null;      /* which template the editor is editing */
 function go(v){ view=v; render(); window.scrollTo(0,0); }
+function openEx(exId, from){ detailExId = exId; backView = from || view; go("exercise"); }
 
 function render(){
   $("#headdate").textContent = new Date().toLocaleDateString("en-AU",
     {weekday:"short", day:"numeric", month:"short"});
   ["today","history","settings"].forEach(v=>
     $("#nav-"+v).classList.toggle("active", view===v ||
-      (v==="today" && (view==="session"||view==="summary"))));
+      (v==="today" && (view==="session"||view==="summary")) ||
+      (v==="settings" && (view==="templates"||view==="tedit"))));
   const m = $("#main");
-  if(view==="today")    m.innerHTML = TodayScreen();
-  if(view==="session")  m.innerHTML = SessionScreen();
-  if(view==="summary")  m.innerHTML = SummaryScreen();
-  if(view==="history")  m.innerHTML = HistoryScreen();
-  if(view==="settings") m.innerHTML = SettingsScreen();
+  if(view==="today")     m.innerHTML = TodayScreen();
+  if(view==="session")   m.innerHTML = SessionScreen();
+  if(view==="summary")   m.innerHTML = SummaryScreen();
+  if(view==="history")   m.innerHTML = HistoryScreen();
+  if(view==="settings")  m.innerHTML = SettingsScreen();
+  if(view==="exercise")  m.innerHTML = ExerciseScreen();
+  if(view==="templates") m.innerHTML = TemplatesScreen();
+  if(view==="tedit")     m.innerHTML = TEditScreen();
   manageClock(); tickClock(); manageWake();
   save();
 }
@@ -819,9 +905,9 @@ function TodayScreen(){
   if(stalls.length){
     h += `<div class="card" style="border-color:rgba(224,185,90,.4)"><h2 style="color:var(--warn)">No top-set progress</h2>`;
     for(const st of stalls)
-      h += `<div class="factrow"><span>${esc(st.name)}
+      h += `<div class="factrow" onclick="openEx('${st.exId}','today')"><span>${esc(st.name)}
           <span style="color:var(--muted); font-size:12px">(best ${st.top})</span></span>
-        <span class="delta warn">${st.sessions} sessions</span></div>`;
+        <span class="delta warn">${st.sessions} sessions ›</span></div>`;
     h += `<div class="note">A fact, not a verdict — context (block, sleep, effort) comes later.</div></div>`;
   }
 
@@ -930,7 +1016,8 @@ function SessionScreen(){
         ? "Last: " + last.entry.sets.map(s=>(s.isWarmup?"w":"")+fmtW(s.weightKg)+"×"+s.reps).join("  ")
         : "First time logging this";
       h += `<div class="exblock"><div class="spread">
-        <div><div class="exname">${esc(ex?.name ?? "?")}</div>
+        <div><div class="exname" onclick="openEx('${en.exerciseId}','session')">${esc(ex?.name ?? "?")}
+          ${en.rr?`<span class="lastline" style="display:inline"> · target ${esc(en.rr)}</span>`:""}</div>
         <div class="lastline">${esc(lastTxt)}</div>
         ${ex && ex.note ? `<div class="noteline">✎ ${esc(ex.note)}</div>` : ""}</div>
         <span class="row" style="gap:6px; flex:none">
@@ -1037,6 +1124,136 @@ function saveFlag(){
   closeModal(); render();
 }
 
+/* ----- EXERCISE DETAIL: the analyst's case file per lift ----- */
+function ExerciseScreen(){
+  const ex = exById(detailExId);
+  if(!ex) return `<div class="empty">Exercise not found.</div>`;
+  const rec = recordsFor(ex.id);
+  const series = exSeries(ex.id);
+  let h = `<div class="spread" style="margin:6px 4px 14px">
+    <h1 class="screen" style="margin:0">${esc(ex.name)}</h1>
+    <button class="chipbtn" onclick="go(backView)">‹ Back</button></div>
+  <div class="card"><div class="spread"><h2 style="text-transform:capitalize">${esc(ex.muscleGroup)}</h2>
+    ${ex.note?`<span class="noteline" style="margin:0">✎ ${esc(ex.note)}</span>`:""}</div>
+    ${exChart(ex.id)}</div>`;
+
+  if(rec.bestW || rec.bestE || rec.bestV){
+    h += `<div class="card"><h2>Records</h2>`;
+    if(rec.bestW) h += `<div class="factrow"><span>Best set</span>
+      <span class="row" style="gap:8px"><span class="factval">${fmtW(rec.bestW.v)}×${rec.bestW.reps}</span>
+      <span class="lastline">${rec.bestW.date}</span></span></div>`;
+    if(rec.bestE) h += `<div class="factrow"><span>Best e1RM</span>
+      <span class="row" style="gap:8px"><span class="factval">${rec.bestE.v}${" "}</span>
+      <span class="lastline">${rec.bestE.date}</span></span></div>`;
+    if(rec.bestV) h += `<div class="factrow"><span>Best session volume</span>
+      <span class="row" style="gap:8px"><span class="factval">${rec.bestV.v.toLocaleString()} kg</span>
+      <span class="lastline">${rec.bestV.date}</span></span></div>`;
+    h += `</div>`;
+  }
+
+  if(series.length){
+    h += `<div class="card"><h2>Logged sessions</h2>`;
+    for(const p of [...series].reverse().slice(0,15))
+      h += `<div class="factrow"><span class="lastline">${p.date}</span>
+        <span class="factval">${fmtW(p.top.weightKg)}×${p.top.reps}
+          <span style="color:var(--muted); font-weight:400">e1RM ${p.v}</span></span></div>`;
+    h += `</div>`;
+  } else {
+    h += `<div class="card"><div class="empty">Not logged yet.</div></div>`;
+  }
+  return h;
+}
+
+/* ----- TEMPLATES: your program, finally editable in-app ----- */
+function TemplatesScreen(){
+  let h = `<div class="spread" style="margin:6px 4px 14px">
+    <h1 class="screen" style="margin:0">Templates</h1>
+    <button class="chipbtn" onclick="go('settings')">‹ Back</button></div>
+  <div class="card">`;
+  for(const t of S.templates)
+    h += `<div class="pickitem" onclick="editTid='${t.id}'; go('tedit')">
+      <span><strong>${esc(t.name)}</strong>
+        <span class="lastline" style="display:block">${t.slots.length} exercises</span></span>
+      <span class="chipbtn">Edit</span></div>`;
+  h += `</div>
+  <button class="btn secondary" onclick="newTemplate()">＋ New template</button>`;
+  return h;
+}
+function newTemplate(){
+  const id = "t"+Date.now();
+  S.templates.push({id, name:"New session", slots:[]});
+  editTid = id; save(); go("tedit");
+}
+
+function TEditScreen(){
+  const t = S.templates.find(x=>x.id===editTid);
+  if(!t) return `<div class="empty">Template not found.</div>`;
+  let h = `<div class="spread" style="margin:6px 4px 14px">
+    <h1 class="screen" style="margin:0">Edit template</h1>
+    <button class="chipbtn" onclick="go('templates')">✓ Done</button></div>
+  <div class="card"><h2>Name</h2>
+    <input class="textbox" style="margin-top:8px" value="${esc(t.name)}"
+      onchange="tRename(this.value)"></div>
+  <div class="card"><h2>Exercises · sets · rep target</h2>`;
+  t.slots.forEach((sl, i)=>{
+    const ex = exById(sl.exerciseId);
+    h += `<div class="exblock"><div class="spread">
+      <div class="exname" style="font-size:15px">${esc(ex?.name ?? "?")}</div>
+      <span class="row" style="gap:6px; flex:none">
+        <button class="chipbtn" onclick="tMove(${i},-1)">↑</button>
+        <button class="chipbtn" onclick="tMove(${i},1)">↓</button>
+        <button class="chipbtn" style="color:var(--down)" onclick="tRemove(${i})">✕</button></span></div>
+      <div class="row" style="margin-top:8px; gap:14px">
+        <span class="row" style="gap:6px">
+          <button class="step" style="width:30px; height:36px" onclick="tSets(${i},-1)">−</button>
+          <span class="val" style="min-width:24px; font-size:15px">${sl.targetSets}</span>
+          <button class="step" style="width:30px; height:36px" onclick="tSets(${i},1)">＋</button>
+          <span class="unit">sets</span></span>
+        <input class="textbox" style="width:90px; padding:8px 10px; font-size:14px"
+          placeholder="e.g. 8-12" value="${sl.targetRepRange?esc(sl.targetRepRange):""}"
+          onchange="tReps(${i}, this.value)">
+        <span class="unit">reps</span></div></div>`;
+  });
+  h += `</div>
+  <button class="btn secondary" onclick="tAdd()">＋ Add exercise</button>
+  <div style="height:10px"></div>
+  <button class="btn danger" onclick="tDelete()">Delete template</button>`;
+  return h;
+}
+function tpl(){ return S.templates.find(x=>x.id===editTid); }
+function tRename(v){ const t=tpl(); t.name = v.trim() || t.name; save(); }
+function tMove(i, d){
+  const s = tpl().slots;
+  const j = i + d;
+  if(j<0 || j>=s.length) return;
+  [s[i], s[j]] = [s[j], s[i]];
+  save(); render();
+}
+function tRemove(i){
+  if(!confirm("Remove this exercise from the template? (History is untouched.)")) return;
+  tpl().slots.splice(i,1); save(); render();
+}
+function tSets(i, d){
+  const sl = tpl().slots[i];
+  sl.targetSets = Math.min(10, Math.max(1, sl.targetSets + d));
+  save(); render();
+}
+function tReps(i, v){
+  tpl().slots[i].targetRepRange = v.trim() || null; save();
+}
+function tAdd(){
+  pickExercise(exId=>{
+    tpl().slots.push({exerciseId:exId, targetSets:3, targetRepRange:null, ss:null});
+    save(); render();
+  }, "Add to template");
+}
+function tDelete(){
+  if(S.templates.length<=1){ alert("Keep at least one template."); return; }
+  if(!confirm("Delete this whole template? (Logged sessions are untouched.)")) return;
+  S.templates = S.templates.filter(x=>x.id!==editTid);
+  save(); go("templates");
+}
+
 /* ----- HISTORY: gym + cardio, colour-coded, one timeline ----- */
 function HistoryScreen(){
   let h = `<h1 class="screen">History</h1>`;
@@ -1087,6 +1304,13 @@ function SettingsScreen(){
   const age = backupAgeDays();
   const blk = activeBlock();
   return `<h1 class="screen">Settings</h1>
+
+  <div class="card"><h2>Your program</h2>
+    <div class="note" style="margin-top:4px">Edit templates — exercises, order, sets,
+      rep targets — or open any exercise's records and progression.</div>
+    <div style="margin-top:10px"><button class="btn secondary" onclick="go('templates')">Edit templates</button></div>
+    <div style="margin-top:8px"><button class="btn secondary"
+      onclick="pickExercise(id=>openEx(id,'settings'), 'Exercise library')">Exercise library</button></div></div>
 
   <div class="card"><h2>Training block</h2>
     ${blk
@@ -1223,6 +1447,7 @@ function startSession(templateId){
   const t = S.templates.find(t=>t.id===templateId);
   const entries = t.slots.map(slot=>({
     exerciseId: slot.exerciseId, ss: slot.ss||null,
+    rr: slot.targetRepRange||null,
     sets: prefillSets(slot.exerciseId, slot.targetSets)
   }));
   S.draft = {id:"s"+Date.now(), date:todayISO(), templateId, name:t.name,
