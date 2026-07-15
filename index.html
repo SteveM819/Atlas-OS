@@ -14,10 +14,11 @@
 
 <style>
 /* =====================================================================
-   REPCHECK — v0.3 "The Dashboard"  (formerly Atlas OS)
-   Session identity is now colour-coded everywhere:
-   gym = steel→violet gradient · cardio = teal.
-   Facts are deterministic arithmetic — the analyst's first words.
+   REPCHECK — v0.4.1 "The Exercise"
+   Template editor (with supersets) · per-exercise case files: e1RM
+   progression chart, all-time records, session log · delta verdicts and
+   stall detection judged by estimated 1RM · rep targets in-session.
+   Design language: instrument panel; colour encodes data direction.
    ===================================================================== */
 :root{
   --bg:      #0C0F14;
@@ -282,7 +283,7 @@ h1.screen{font-size:23px; font-weight:800; margin:6px 4px 14px;
 /* IMPORTANT: the storage key keeps its historical name so every byte of
    existing data survives the rename. Renaming the key = losing the data. */
 const STORE_KEY = "atlasos_v1";
-const VERSION   = "0.4.0";
+const VERSION   = "0.4.1";
 const CATS = ["chest","back","shoulders","arms","legs","abs","cardio","other"];
 const SKIP_REASONS = ["busy","pain","time","fatigue","other"];
 const CARDIO_TYPES = ["run","row","stair","other"];
@@ -1194,12 +1195,18 @@ function TEditScreen(){
   <div class="card"><h2>Name</h2>
     <input class="textbox" style="margin-top:8px" value="${esc(t.name)}"
       onchange="tRename(this.value)"></div>
-  <div class="card"><h2>Exercises · sets · rep target</h2>`;
+  <div class="card"><h2>Exercises · sets · rep target</h2>
+    <div class="note" style="margin-top:2px">⫘ links an exercise as a superset with the
+      one above it. Tap again to unlink.</div>`;
   t.slots.forEach((sl, i)=>{
     const ex = exById(sl.exerciseId);
-    h += `<div class="exblock"><div class="spread">
+    const linked = sl.ss && i>0 && t.slots[i-1].ss===sl.ss;
+    h += `<div class="exblock">
+      ${linked?`<span class="ssflag">SUPERSET with above</span>`:""}
+      <div class="spread">
       <div class="exname" style="font-size:15px">${esc(ex?.name ?? "?")}</div>
       <span class="row" style="gap:6px; flex:none">
+        ${i>0?`<button class="chipbtn ${linked?"sel":""}" onclick="tToggleSS(${i})">⫘</button>`:""}
         <button class="chipbtn" onclick="tMove(${i},-1)">↑</button>
         <button class="chipbtn" onclick="tMove(${i},1)">↓</button>
         <button class="chipbtn" style="color:var(--down)" onclick="tRemove(${i})">✕</button></span></div>
@@ -1240,6 +1247,25 @@ function tSets(i, d){
 }
 function tReps(i, v){
   tpl().slots[i].targetRepRange = v.trim() || null; save();
+}
+/* Link/unlink a slot as a superset with the slot ABOVE it. The ⫘ chip on
+   a slot toggles the pairing; chains of 3+ work by linking each next
+   slot to the one above. */
+function tToggleSS(i){
+  const s = tpl().slots;
+  if(i===0) return;
+  const linked = s[i].ss && s[i-1].ss===s[i].ss;
+  if(linked){
+    s[i].ss = null;
+    /* if the one above is now alone in its group, untag it too */
+    const g = s[i-1].ss;
+    if(g && !s.some((x,j)=>j!==i-1 && x.ss===g)) s[i-1].ss = null;
+  } else {
+    const g = s[i-1].ss || ("ss"+Date.now());
+    s[i-1].ss = g;
+    s[i].ss = g;
+  }
+  save(); render();
 }
 function tAdd(){
   pickExercise(exId=>{
